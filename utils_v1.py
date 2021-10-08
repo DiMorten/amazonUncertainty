@@ -355,73 +355,13 @@ def build_resunet(input_shape, nb_filters, n_classes):
     return Model(input_img, output)
 
 
-def build_resunet_dropout(input_shape, nb_filters, n_classes, seed = 0):
-    '''Base network to be shared (eq. to feature extraction)'''
-    #nb_filters = [16, 32, 64, 128]
-    dropout = 0.3
-
-    input_img = Input(shape = input_shape, name="input_enc_net")
-    
-    res_block1 = resnet_block(input_img, nb_filters[0], 1) 
-    pool1 = MaxPool2D((2 , 2), name='pool_net1')(res_block1)
-
-    pool1 = SpatialDropout2D(dropout, seed = seed)(pool1, training=True)
-
-    res_block2 = resnet_block(pool1, nb_filters[1], 2)
-    pool2 = MaxPool2D((2 , 2), name='pool_net2')(res_block2)
-
-    pool2 = SpatialDropout2D(dropout, seed = seed)(pool2, training=True)
-
-    res_block3 = resnet_block(pool2, nb_filters[2], 3)
-    pool3 = MaxPool2D((2 , 2), name='pool_net3')(res_block3)
-
-    pool3 = SpatialDropout2D(dropout, seed = seed)(pool3, training=True)
-
-    res_block4 = resnet_block(pool3, nb_filters[3], 4)
-    pool4 = MaxPool2D((2 , 2), name='pool_net4')(res_block4)
-
-    pool4 = SpatialDropout2D(dropout, seed = seed)(pool4, training=True)
-
-    res_block5 = resnet_block(pool4, nb_filters[4], 5)
-    
-    #res_block6 = resnet_block(res_block5, nb_filters[2], 6)
-    
-    upsample4 = Conv2D(nb_filters[3], (3 , 3), activation = 'relu', padding = 'same', 
-                       name = 'upsampling_net4')(UpSampling2D(size = (2,2))(res_block5))
-
-    upsample4 = SpatialDropout2D(dropout, seed = seed)(upsample4, training=True)
-
-    merged4 = concatenate([res_block4, upsample4], name='concatenate4')
-    
-    upsample3 = Conv2D(nb_filters[2], (3 , 3), activation = 'relu', padding = 'same', 
-                       name = 'upsampling_net3')(UpSampling2D(size = (2,2))(merged4))
-
-    upsample3 = SpatialDropout2D(dropout, seed = seed)(upsample3, training=True)
-
-    merged3 = concatenate([res_block3, upsample3], name='concatenate3')
-
-    upsample2 = Conv2D(nb_filters[1], (3 , 3), activation = 'relu', padding = 'same', 
-                       name = 'upsampling_net2')(UpSampling2D(size = (2,2))(merged3))
-
-    upsample2 = SpatialDropout2D(dropout, seed = seed)(upsample2, training=True)
-
-    merged2 = concatenate([res_block2, upsample2], name='concatenate2')
-                                                                                          
-    upsample1 = Conv2D(nb_filters[0], (3 , 3), activation = 'relu', padding = 'same', 
-                       name = 'upsampling_net1')(UpSampling2D(size = (2,2))(merged2))
-    merged1 = concatenate([res_block1, upsample1], name='concatenate1')
-
-    output = Conv2D(n_classes,(1,1), activation = 'softmax', padding = 'same', name = 'output')(merged1)
-                                                                                                           
-    return Model(input_img, output)
-        
-def resnet_block_spatial_dropout(x, n_filter, ind):
+def resnet_block_spatial_dropout(x, n_filter, ind, dropout):
     x_init = x
 
     ## Conv 1
     x = Conv2D(n_filter, (3, 3), activation='relu', padding="same", name = 'res1_net'+str(ind))(x)
     # x = Dropout(0.5, name = 'drop_net'+str(ind))(x, training = True)
-    x = SpatialDropout2D(0.3, name = 'drop_net'+str(ind))(x, training = True)
+    x = SpatialDropout2D(dropout, name = 'drop_net'+str(ind))(x, training = True)
 
     ## Conv 2
     x = Conv2D(n_filter, (3, 3), activation='relu', padding="same", name = 'res2_net'+str(ind))(x)
@@ -434,26 +374,32 @@ def resnet_block_spatial_dropout(x, n_filter, ind):
     return x
 
 
-def build_resunet_dropout2(input_shape, nb_filters, n_classes, seed = 0):
+def build_resunet_dropout(input_shape, nb_filters, n_classes, dropout = 0.3, seed = 0):
     '''Base network to be shared (eq. to feature extraction)'''
     #nb_filters = [16, 32, 64, 128]
-    dropout = 0.3
+
 
     input_img = Input(shape = input_shape, name="input_enc_net")
     
-    res_block1 = resnet_block_spatial_dropout(input_img, nb_filters[0], 1) 
+    res_block1 = resnet_block_spatial_dropout(input_img, nb_filters[0], 1,
+        dropout = dropout)
+
     pool1 = MaxPool2D((2 , 2), name='pool_net1')(res_block1)
 
-    res_block2 = resnet_block_spatial_dropout(pool1, nb_filters[1], 2)
+    res_block2 = resnet_block_spatial_dropout(pool1, nb_filters[1], 2,
+        dropout = dropout)
     pool2 = MaxPool2D((2 , 2), name='pool_net2')(res_block2)
 
-    res_block3 = resnet_block_spatial_dropout(pool2, nb_filters[2], 3)
+    res_block3 = resnet_block_spatial_dropout(pool2, nb_filters[2], 3,
+        dropout = dropout)
     pool3 = MaxPool2D((2 , 2), name='pool_net3')(res_block3)
 
-    res_block4 = resnet_block_spatial_dropout(pool3, nb_filters[3], 4)
+    res_block4 = resnet_block_spatial_dropout(pool3, nb_filters[3], 4,
+        dropout = dropout)
     pool4 = MaxPool2D((2 , 2), name='pool_net4')(res_block4)
 
-    res_block5 = resnet_block_spatial_dropout(pool4, nb_filters[4], 5)
+    res_block5 = resnet_block_spatial_dropout(pool4, nb_filters[4], 5,
+        dropout = dropout)
     
     #res_block6 = resnet_block(res_block5, nb_filters[2], 6)
     
